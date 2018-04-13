@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>index</title>
+  <link rel="stylesheet" href="main.css">
+</head>
+<body>
+  <div class="img">
+    <img src="logo.jpg">
+  </div>
+  <div class="eventsLog">
+    <div class="logsSend">
+      <textarea id="S_textareaLog"></textarea>
+    </div>
+    <div class="logsGet">
+      <textarea id="G_textareaLog"></textarea>
+    </div>
+  </div>
+  <div class="handels">
+    <div class="handel1">
+      <input id="content" type="text">
+      <button id="send">send</button>
+      <button id="emit">emit</button>
+      <button id="broadcast">broadcast</button>
+      <button id="localEmit">localEmit</button>
+      <button id="getSocket">getSocket</button>
+    </div>
+    <div class="handel2">
+      <div class="rooms"></div>
+      <input type="text" id="send_input">
+      <button id="createRoom">createRoom</button>
+      <button id="joinRoom">joinRoom</button>
+      <button id="sendToRoom">sendToRoom</button>
+    </div>
+  </div>
+  
+  <script src="jquery-1.10.1.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    var socket = io()
+    var socketMain = io('/main')
+
+    window.socket=socket
+    let send = document.getElementById('send')
+    let emit = document.getElementById('emit')
+    let localEmit = document.getElementById('localEmit')
+    let broadcast = document.getElementById('broadcast')
+    let _input = document.getElementById('content')
+    let S_textarea = document.getElementById('S_textareaLog')
+    let G_textarea = document.getElementById('G_textareaLog')
+    let getSocket = document.getElementById('getSocket')
+    let createRoom = document.getElementById('createRoom')
+    let joinRoom = document.getElementById('joinRoom')
+    let sendToRoom = document.getElementById('sendToRoom')
+    let roomsContainer = document.getElementsByClassName('rooms')[0]
+    let send_input = document.getElementById('send_input')
+
+    send.addEventListener('click', sendHandel)
+    _input.addEventListener('keypress', sendHandel)
+    
+    emit.addEventListener('click', emitMsg)
+    localEmit.addEventListener('click', localEmitMsg)
+    broadcast.addEventListener('click', broadcastMsg)
+    getSocket.addEventListener('click', getSocketData)
+    createRoom.addEventListener('click', createRoomHandel)
+    sendToRoom.addEventListener('click', sendToRoomHandel)
+    joinRoom.addEventListener('click', joinRoomHandel)
+    
+    function sendHandel(e) {
+      if ((e.type === 'keypress' && e.which === 13) || e.type === 'click') {
+        // 发送数据 （会触发 message 事件）
+        socket.send(_input.value)
+        S_textarea.value = S_textarea.value + `send: ${_input.value} \n`
+        _input.value = ''
+      }
+    }
+    
+    function emitMsg(){
+      // 发射事件 回调函数的作用是：服务端监听到事件后，进行处理或返回其他数据（data是服务端的返回）
+      socket.emit('c_notice', 'hello', (data)=>{
+        console.log(data)
+      })
+
+      S_textarea.value = S_textarea.value + `emit 'c_notice', data: 'hello'` + '\n'
+    }
+
+    function localEmitMsg(){
+      socket.emit('c_localEmitMsg', 'to all clients in this namespace')
+      S_textarea.value = S_textarea.value + `emit 'c_localEmitMsg', data: 'to all clients in this namespace'` + '\n'
+    }
+
+    function broadcastMsg() {
+      socket.emit('c_broadcastMsg', 'notice to everyone')
+      S_textarea.value = S_textarea.value + `broadcast emit 'c_broadcastMsg', data: notice to everyone` + '\n'
+    }
+
+    function createRoomHandel(){
+      let roomid = new Date().getTime()
+      socket.emit('c_createRoom', roomid)
+      S_textarea.value = S_textarea.value + `emit 'c_createRoom', data: ${roomid}` + '\n'
+      let room = document.createElement('input')
+      room.value = roomid
+      roomsContainer.appendChild(room)
+    }
+
+    function joinRoomHandel(){
+
+      socket.emit('c_joinRoom', send_input.value)
+      S_textarea.value = S_textarea.value + `emit 'c_joinRoom', data: ${send_input.value}` + '\n'
+    }
+
+    function sendToRoomHandel(){
+      S_textarea.value = S_textarea.value + `emit 'c_sendToRoom', data: ${send_input.value}` + '\n'
+      socket.emit('c_sendToRoom', send_input.value)
+    }
+
+    // socket 监听
+    socket.on('connect', ()=>{
+      G_textarea.value = G_textarea.value + '连接成功！' + '\n'
+
+      socket.on('s_broadcastMsg', (data)=>{
+        G_textarea.value = G_textarea.value + 's_broadcastMsg, data: ' + data + '\n'
+      })
+
+      socket.on('s_notice', (data)=>{
+        G_textarea.value = G_textarea.value + `s_notice', data: '${data}'` + '\n'
+      })
+
+      socket.on('s_returnSocket', (data)=>{
+        G_textarea.value = G_textarea.value + `s_returnSocket', data: '${data}'` + '\n'
+        console.dir(data)
+      })
+
+      socket.on('s_sendToRoom', (msg)=>{
+        console.log('sendToRoom~~~' + msg)
+      })
+
+      socket.on('s_returnRooms', (msg)=>{
+        console.log('s_returnRooms: all rooms  ' + msg)
+      })
+    })
+
+    // main namespace
+    socketMain.on('connect', ()=>{
+      G_textarea.value = G_textarea.value + `----main connect` + '\n'
+      socketMain.on('s_notice', (msg) => {
+        G_textarea.value = G_textarea.value + `----main s_notice', data: '${msg}'` + '\n'
+      })
+    })
+    
+    function getSocketData(){
+      socket.emit('c_getSocketData', '')
+      S_textarea.value = S_textarea.value + `emit 'c_getSocketData' ` + '\n'
+    }
+
+  </script>
+</body>
+</html>
